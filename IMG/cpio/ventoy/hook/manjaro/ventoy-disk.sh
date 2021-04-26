@@ -49,7 +49,12 @@ done
 
 if [ -n "$1" ]; then
     vtlog "ln -s /dev/$vtDM $1"
-    ln -s /dev/$vtDM "$1"
+    
+    if [ -e "$1" ]; then
+        vtlog "$1 already exist"
+    else
+        ln -s /dev/$vtDM "$1"
+    fi
 else
     vtLABEL=$($BUSYBOX_PATH/blkid /dev/$vtDM | $SED 's/.*LABEL="\([^"]*\)".*/\1/')
     vtlog "vtLABEL is $vtLABEL"

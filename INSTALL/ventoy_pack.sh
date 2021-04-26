@@ -27,6 +27,10 @@ sh mkcpio.sh
 sh mkloopex.sh
 cd -
 
+cd ../Unix
+sh pack_unix.sh
+cd -
+
 cd ../LinuxGUI
 sh language.sh || exit 1
 sh build.sh
@@ -77,6 +81,7 @@ mkdir -p $tmpmnt/tool
 cp $OPT ./tool/i386/mount.exfat-fuse     $tmpmnt/tool/mount.exfat-fuse_i386
 cp $OPT ./tool/x86_64/mount.exfat-fuse   $tmpmnt/tool/mount.exfat-fuse_x86_64
 cp $OPT ./tool/aarch64/mount.exfat-fuse  $tmpmnt/tool/mount.exfat-fuse_aarch64
+
 
 rm -f $tmpmnt/grub/i386-pc/*.img
 
