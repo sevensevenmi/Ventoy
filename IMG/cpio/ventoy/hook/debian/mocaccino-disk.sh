@@ -27,27 +27,6 @@ vtlog "####### $0 $* ########"
 
 VTPATH_OLD=$PATH; PATH=$BUSYBOX_PATH:$VTOY_PATH/tool:$PATH
 
-vtKerVer=$(uname -r)
-if uname -m | grep -q 64; then
-    vtBit=64
-else
-    vtBit=32
-fi
-
-if grep -q "device-mapper" /proc/devices; then
-    vtlog "device-mapper enabled by system"
-else
-    if [ -f $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko.xz ]; then
-        xz -d $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko.xz
-        insmod $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko
-    fi
-
-    if [ -f $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko.xz ]; then
-        xz -d $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko.xz
-        insmod $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko
-    fi
-fi
-
 wait_for_usb_disk_ready
 
 vtdiskname=$(get_ventoy_disk_name)
@@ -59,13 +38,9 @@ fi
 
 ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2" "noreplace"
 
-ventoy_create_dev_ventoy_part
-
-mkdir /ventoy/mnt
-mount /dev/ventoy2 /ventoy/mnt
-rm -f /ventoy/mnt/.please_resize_me
-sync
-umount /ventoy/mnt
+blkdev_num=$($VTOY_PATH/tool/dmsetup ls | grep ventoy | sed 's/.*(\([0-9][0-9]*\),.*\([0-9][0-9]*\).*/\1:\2/')
+vtDM=$(ventoy_find_dm_id ${blkdev_num})
+vtlog "/dev/$vtDM"
 
 PATH=$VTPATH_OLD
 

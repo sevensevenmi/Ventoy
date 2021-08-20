@@ -69,6 +69,9 @@
 #define VTOY_ARCH_CPIO  "ventoy_x86.cpio"
 #endif
 
+#define ventoy_varg_4(arg) arg[0], arg[1], arg[2], arg[3]
+#define ventoy_varg_8(arg) arg[0], arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7]
+
 #define VTOY_PWD_CORRUPTED(err) \
 {\
     grub_printf("\n\n Password corrupted, will reboot after 5 seconds.\n\n"); \
@@ -532,6 +535,23 @@ typedef struct plugin_entry
     ventoy_plugin_entry_pf entryfunc;
     ventoy_plugin_check_pf checkfunc;
 }plugin_entry;
+
+typedef struct replace_fs_dir
+{
+    grub_device_t dev;
+    grub_fs_t fs;
+    char fullpath[512];
+    char initrd[512];
+    int curpos;
+    int dircnt;
+    int filecnt;
+}replace_fs_dir;
+
+typedef struct chk_case_fs_dir
+{
+    grub_device_t dev;
+    grub_fs_t fs;
+}chk_case_fs_dir;
 
 int ventoy_strcmp(const char *pattern, const char *str);
 int ventoy_strncmp (const char *pattern, const char *str, grub_size_t n);
@@ -1046,6 +1066,12 @@ int ventoy_chain_file_read(const char *path, int offset, int len, void *buf);
 #define vtoy_theme_random_boot_second  0
 #define vtoy_theme_random_boot_day     1
 #define vtoy_theme_random_boot_month   2
+
+#define ventoy_env_export(env, name) \
+{\
+    grub_env_set((env), (name));\
+    grub_env_export(env);\
+}
 
 #endif /* __VENTOY_DEF_H__ */
 

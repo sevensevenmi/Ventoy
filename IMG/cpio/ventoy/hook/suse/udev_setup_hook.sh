@@ -19,54 +19,24 @@
 
 . /ventoy/hook/ventoy-hook-lib.sh
 
-if is_ventoy_hook_finished; then
-    exit 0
-fi
-
-vtlog "####### $0 $* ########"
-
-VTPATH_OLD=$PATH; PATH=$BUSYBOX_PATH:$VTOY_PATH/tool:$PATH
-
-vtKerVer=$(uname -r)
-if uname -m | grep -q 64; then
-    vtBit=64
-else
-    vtBit=32
-fi
-
-if grep -q "device-mapper" /proc/devices; then
-    vtlog "device-mapper enabled by system"
-else
-    if [ -f $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko.xz ]; then
-        xz -d $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko.xz
-        insmod $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dax.ko
-    fi
-
-    if [ -f $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko.xz ]; then
-        xz -d $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko.xz
-        insmod $VTOY_PATH/vtloopex/dm-mod/$vtKerVer/$vtBit/dm-mod.ko
-    fi
-fi
-
 wait_for_usb_disk_ready
 
 vtdiskname=$(get_ventoy_disk_name)
 if [ "$vtdiskname" = "unknown" ]; then
     vtlog "ventoy disk not found"
-    PATH=$VTPATH_OLD
     exit 0
 fi
 
-ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2" "noreplace"
+vtlog "wait_for_usb_disk_ready $vtdiskname ..."
 
-ventoy_create_dev_ventoy_part
+if echo $vtdiskname | $EGREP -q "nvme|mmc|nbd"; then
+    vtpart2=${vtdiskname}p2
+else
+    vtpart2=${vtdiskname}2
+fi
 
-mkdir /ventoy/mnt
-mount /dev/ventoy2 /ventoy/mnt
-rm -f /ventoy/mnt/.please_resize_me
-sync
-umount /ventoy/mnt
+/ventoy/busybox/sh /ventoy/hook/suse/udev_disk_hook.sh "${vtpart2#/dev/}"
 
-PATH=$VTPATH_OLD
-
-set_ventoy_hook_finish
+if $GREP -q 'mediacheck=1' /proc/cmdline; then   
+    ventoy_copy_device_mapper "${vtdiskname}"
+fi

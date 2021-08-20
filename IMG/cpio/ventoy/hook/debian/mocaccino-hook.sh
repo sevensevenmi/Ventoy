@@ -17,25 +17,4 @@
 # 
 #************************************************************************************
 
-. /ventoy/hook/ventoy-hook-lib.sh
-
-for i in 0 1 2 3 4 5 6 7 8 9; do 
-    vtdiskname=$(get_ventoy_disk_name)
-    if [ "$vtdiskname" = "unknown" ]; then
-        vtlog "wait for disk ..."
-        $SLEEP 3
-    else
-        break
-    fi
-done
-
-ventoy_extract_vtloopex ${vtdiskname}2  crux
-
-
-vtKver=$(uname -r)
-vtLoopExDir=$VTOY_PATH/vtloopex/crux/vtloopex
-
-ventoy_check_install_module_xz $vtLoopExDir/dm-mod/$vtKver/64/dax.ko
-ventoy_check_install_module_xz $vtLoopExDir/dm-mod/$vtKver/64/dm-mod.ko
-
-ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2"
+$SED "/mount_system *$/i\ $BUSYBOX_PATH/sh $VTOY_PATH/hook/debian/mocaccino-disk.sh"  -i /loader
