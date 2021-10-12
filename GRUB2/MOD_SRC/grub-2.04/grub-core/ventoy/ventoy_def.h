@@ -215,6 +215,8 @@ typedef struct img_info
     char name[256];
 
     const char *alias;
+    const char *tip1;
+    const char *tip2;
     const char *class;
     const char *menu_prefix;
     
@@ -432,6 +434,18 @@ typedef struct wim_directory_entry
 /** No security information exists for this file */
 #define WIM_NO_SECURITY 0xffffffffUL
 
+typedef struct reg_vk
+{
+    grub_uint32_t res1;
+    grub_uint16_t sig;
+    grub_uint16_t namesize;
+    grub_uint32_t datasize;
+    grub_uint32_t dataoffset;
+    grub_uint32_t datatype;
+    grub_uint16_t flag;
+    grub_uint16_t res2;
+}reg_vk;
+
 #pragma pack()
 
 
@@ -568,6 +582,7 @@ grub_err_t ventoy_cmd_linux_locate_initrd(grub_extcmd_context_t ctxt, int argc, 
 grub_err_t ventoy_cmd_initrd_count(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_valid_initrd_count(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_load_cpio(grub_extcmd_context_t ctxt, int argc, char **args);
+grub_err_t ventoy_cmd_append_ext_sector(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_skip_svd(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_cpio_busybox_64(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_trailer_cpio(grub_extcmd_context_t ctxt, int argc, char **args);
@@ -864,6 +879,17 @@ typedef struct menu_alias
     struct menu_alias *next;
 }menu_alias;
 
+typedef struct menu_tip
+{
+    int pathlen;
+    char isopath[256];
+    char tip1[1024];
+    char tip2[1024];
+
+    struct menu_tip *next;
+}menu_tip;
+
+
 #define vtoy_class_image_file  0
 #define vtoy_class_directory   1
 
@@ -1003,6 +1029,8 @@ extern grub_uint32_t g_ventoy_plat_data;
 #define ventoy_syscall0(name) grub_##name()
 #define ventoy_syscall1(name, a) grub_##name(a)
 
+void ventoy_str_tolower(char *str);
+void ventoy_str_toupper(char *str);
 char * ventoy_get_line(char *start);
 int ventoy_cmp_img(img_info *img1, img_info *img2);
 void ventoy_swap_img(img_info *img1, img_info *img2);
@@ -1016,6 +1044,7 @@ int ventoy_fill_windows_rtdata(void *buf, char *isopath);
 int ventoy_plugin_get_persistent_chunklist(const char *isopath, int index, ventoy_img_chunk_list *chunk_list);
 const char * ventoy_plugin_get_injection(const char *isopath);
 const char * ventoy_plugin_get_menu_alias(int type, const char *isopath);
+const menu_tip * ventoy_plugin_get_menu_tip(const char *isopath);
 const char * ventoy_plugin_get_menu_class(int type, const char *name, const char *path);
 int ventoy_plugin_check_memdisk(const char *isopath);
 int ventoy_plugin_get_image_list_index(int type, const char *name);
