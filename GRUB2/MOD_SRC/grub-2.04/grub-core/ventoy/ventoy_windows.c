@@ -687,6 +687,7 @@ static int parse_registry_setup_cmdline
 )
 {
     char c;
+    int ret = 0;
     grub_uint32_t i = 0;    
     grub_uint32_t reglen = 0;
     wim_hash zerohash;
@@ -726,7 +727,7 @@ static int parse_registry_setup_cmdline
 
     if (grub_strncmp(decompress_data + 0x1000, "hbin", 4))
     {
-        return 5;
+        ret_goto_end(5);
     }
 
     for (i = 0x1000; i + sizeof(reg_vk) < reglen; i += 8)
@@ -746,18 +747,18 @@ static int parse_registry_setup_cmdline
 
     if (i + sizeof(reg_vk) >= reglen || regvk == NULL)
     {
-        return 6;
+        ret_goto_end(6);
     }
 
     if (regvk->datasize == 0 || (regvk->datasize & 0x80000000) > 0 ||
         regvk->dataoffset == 0 || regvk->dataoffset == 0xFFFFFFFF)
     {
-        return 7;
+        ret_goto_end(7);
     }
 
     if (regvk->datasize / 2 >= buflen)
     {
-        return 8;
+        ret_goto_end(8);
     }
 
     debug("start offset is 0x%x(%u)\n", 0x1000 + regvk->dataoffset + 4, 0x1000 + regvk->dataoffset + 4);
@@ -768,7 +769,71 @@ static int parse_registry_setup_cmdline
         *buf++ = c;
     }
 
-    grub_free(decompress_data);
+    ret = 0;
+
+end:
+    grub_check_free(decompress_data);
+    return ret;
+}
+
+static int parse_custom_setup_path(char *cmdline, const char **path, char *exefile)
+{
+    int i = 0;
+    int len = 0;
+    char *pos1 = NULL;
+    char *pos2 = NULL;
+    
+    if ((cmdline[0] == 'x' || cmdline[0] == 'X') && cmdline[1] == ':')
+    {
+        pos1 = pos2 = cmdline + 3;
+
+        while (i < VTOY_MAX_DIR_DEPTH && *pos2)
+        {
+            while (*pos2 && *pos2 != '\\' && *pos2 != '/')
+            {
+                pos2++;
+            }
+
+            path[i++] = pos1;
+            
+            if (*pos2 == 0)
+            {                
+                break;
+            }
+
+            *pos2 = 0;
+            pos1 = pos2 + 1;
+            pos2 = pos1;
+        }
+
+        if (i == 0 || i >= VTOY_MAX_DIR_DEPTH)
+        {
+            return 1;
+        }
+    }
+    else
+    {
+        path[i++] = "Windows";
+        path[i++] = "System32";
+        path[i++] = cmdline;
+    }
+
+    pos1 = (char *)path[i - 1];
+    while (*pos1 != ' ' && *pos1 != '\t' && *pos1)
+    {
+        pos1++;
+    }
+    *pos1 = 0;
+
+    len = (int)grub_strlen(path[i - 1]);
+    if (len < 4 || grub_strcasecmp(path[i - 1] + len - 4, ".exe") != 0)
+    {
+        grub_snprintf(exefile, 256, "%s.exe", path[i - 1]);
+        path[i - 1] = exefile;            
+    }
+
+
+    debug("custom setup: %d <%s>\n", i, path[i - 1]);
     return 0;
 }
 
@@ -782,46 +847,57 @@ static wim_directory_entry * search_replace_wim_dirent
 )
 {
     int ret;
+    char exefile[256] = {0};
     char cmdline[256] = {0};
     wim_directory_entry *wim_dirent = NULL;
+    wim_directory_entry *pecmd_dirent = NULL;
     const char *peset_path[] = { "Windows", "System32", "peset.exe", NULL };
     const char *pecmd_path[] = { "Windows", "System32", "pecmd.exe", NULL };
     const char *winpeshl_path[] = { "Windows", "System32", "winpeshl.exe", NULL };
+    const char *custom_path[VTOY_MAX_DIR_DEPTH + 1] = { NULL };
 
-    ret = parse_registry_setup_cmdline(file, head, lookup, meta_data, dir, cmdline, sizeof(cmdline));
-    if (0 == ret)
+    pecmd_dirent = search_full_wim_dirent(meta_data, dir, pecmd_path);
+    debug("search pecmd.exe %p\n", pecmd_dirent);
+
+    if (pecmd_dirent)
     {
-        debug("registry setup cmdline:<%s>\n", cmdline);
-        ventoy_str_toupper(cmdline);
-        
-        if (grub_strncmp(cmdline, "PECMD", 5) == 0)
+        ret = parse_registry_setup_cmdline(file, head, lookup, meta_data, dir, cmdline, sizeof(cmdline) - 1);
+        if (0 == ret)
         {
-            wim_dirent = search_full_wim_dirent(meta_data, dir, pecmd_path);
-            debug("search pecmd.exe %p\n", wim_dirent);
-        }
-        else if (grub_strncmp(cmdline, "PESET", 5) == 0)
-        {
-            wim_dirent = search_full_wim_dirent(meta_data, dir, peset_path);
-            debug("search peset.exe %p\n", wim_dirent);
-        }
-        else if (grub_strncmp(cmdline, "WINPESHL", 8) == 0)
-        {
-            wim_dirent = search_full_wim_dirent(meta_data, dir, winpeshl_path);
-            debug("search winpeshl.exe %p\n", wim_dirent);
-        }
+            debug("registry setup cmdline:<%s>\n", cmdline);
+            
+            if (grub_strncasecmp(cmdline, "PECMD", 5) == 0)
+            {
+                wim_dirent = pecmd_dirent;
+            }
+            else if (grub_strncasecmp(cmdline, "PESET", 5) == 0)
+            {
+                wim_dirent = search_full_wim_dirent(meta_data, dir, peset_path);
+                debug("search peset.exe %p\n", wim_dirent);
+            }
+            else if (grub_strncasecmp(cmdline, "WINPESHL", 8) == 0)
+            {
+                wim_dirent = search_full_wim_dirent(meta_data, dir, winpeshl_path);
+                debug("search winpeshl.exe %p\n", wim_dirent);
+            }
+            else if (0 == parse_custom_setup_path(cmdline, custom_path, exefile))
+            {
+                wim_dirent = search_full_wim_dirent(meta_data, dir, custom_path);
+                debug("search custom path %p\n", wim_dirent);
+            }
 
-        if (wim_dirent)
+            if (wim_dirent)
+            {
+                return wim_dirent;
+            }
+        }
+        else
         {
-            return wim_dirent;
+            debug("registry setup cmdline failed : %d\n", ret);
         }
     }
-    else
-    {
-        debug("registry setup cmdline failed : %d\n", ret);
-    }
 
-    wim_dirent = search_full_wim_dirent(meta_data, dir, pecmd_path);
-    debug("search pecmd.exe %p\n", wim_dirent);
+    wim_dirent = pecmd_dirent;
     if (wim_dirent)
     {
         return wim_dirent;
@@ -973,6 +1049,7 @@ int ventoy_fill_windows_rtdata(void *buf, char *isopath)
 {
     char *pos = NULL;
     char *script = NULL;
+    const char *env = NULL;
     ventoy_windows_data *data = (ventoy_windows_data *)buf;
 
     grub_memset(data, 0, sizeof(ventoy_windows_data));
@@ -1011,7 +1088,13 @@ int ventoy_fill_windows_rtdata(void *buf, char *isopath)
     {
         debug("injection archive not configed %s\n", pos);
     }
-    
+
+    env = grub_env_get("VTOY_WIN11_BYPASS_CHECK");
+    if (env && env[0] == '1' && env[1] == 0)
+    {
+        data->windows11_bypass_check = 1;
+    }
+
     return 0;
 }
 
