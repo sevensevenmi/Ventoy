@@ -199,6 +199,18 @@ typedef struct ventoy_iso9660_vd
     grub_uint32_t space;
 }ventoy_iso9660_vd;
 
+/* https://wiki.osdev.org/El-Torito */
+typedef struct boot_info_table
+{
+    grub_uint32_t bi_data0;
+    grub_uint32_t bi_data1;
+    grub_uint32_t bi_PrimaryVolumeDescriptor;
+    grub_uint32_t bi_BootFileLocation;
+    grub_uint32_t bi_BootFileLength;
+    grub_uint32_t bi_Checksum;
+    grub_uint8_t bi_Reserved[40];
+}boot_info_table;
+
 #pragma pack()
 
 #define img_type_start 0
@@ -550,6 +562,7 @@ typedef struct plugin_entry
     const char *key;
     ventoy_plugin_entry_pf entryfunc;
     ventoy_plugin_check_pf checkfunc;
+    int flag;
 }plugin_entry;
 
 typedef struct replace_fs_dir
@@ -829,6 +842,7 @@ typedef struct install_template
     int pathlen;
     char isopath[256];
 
+    int timeout;
     int autosel;
     int cursel;
     int templatenum;
@@ -860,6 +874,7 @@ typedef struct persistence_config
     int pathlen;
     char isopath[256];
 
+    int timeout;
     int autosel;
     int cursel;
     int backendnum;
@@ -923,6 +938,7 @@ typedef struct custom_boot
 typedef struct conf_replace
 {
     int pathlen;
+    int img;
     char isopath[256];
     char orgconf[256];
     char newconf[256];
@@ -987,6 +1003,7 @@ typedef struct menu_password
 
 extern int g_ventoy_menu_esc;
 extern int g_ventoy_suppress_esc;
+extern int g_ventoy_suppress_esc_default;
 extern int g_ventoy_last_entry;
 extern int g_ventoy_memdisk_mode;
 extern int g_ventoy_iso_raw;
@@ -1105,6 +1122,8 @@ int ventoy_chain_file_read(const char *path, int offset, int len, void *buf);
 }
 
 #define ret_goto_end(a) ret = a; goto end;
+
+extern ventoy_grub_param *g_grub_param;
 
 #endif /* __VENTOY_DEF_H__ */
 

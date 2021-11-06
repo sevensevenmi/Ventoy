@@ -17,19 +17,31 @@
 # 
 #************************************************************************************
 
-$SED "s#.*livefs_root=.*find_livefs.*#$BUSYBOX_PATH/mount -t iso9660 /dev/mapper/ventoy \$mountpoint; livefs_root=\$mountpoint#" -i /usr/lib/live/boot/9990-main.sh
-$SED "s#.*livefs_root=.*find_livefs.*#$BUSYBOX_PATH/mount -t iso9660 /dev/mapper/ventoy \$mountpoint; livefs_root=\$mountpoint#" -i /usr/bin/boot/9990-main.sh
+. /ventoy/hook/ventoy-hook-lib.sh
 
-if [ -e /init ] && $GREP -q '^mountroot$' /init; then
-    echo "Here before mountroot ..." >> $VTLOG    
-    $SED  "/^mountroot$/i\\$BUSYBOX_PATH/sh $VTOY_PATH/hook/debian/disk_mount_hook.sh"  -i /init
-    
-    if [ -f /scripts/init-premount/ORDER ]; then
-        $SED "/\/scripts\/init-premount\/partitioning/,+1d"  -i /scripts/init-premount/ORDER
-    fi
-    
-else
-    echo "Use default hook ..." >> $VTLOG
-    ventoy_systemd_udevd_work_around
-    ventoy_add_udev_rule "$VTOY_PATH/hook/debian/udev_disk_hook.sh %k"
+if is_ventoy_hook_finished; then
+    exit 0
 fi
+
+vtlog "####### $0 $* ########"
+
+VTPATH_OLD=$PATH; PATH=$BUSYBOX_PATH:$VTOY_PATH/tool:$PATH
+
+wait_for_usb_disk_ready
+
+vtdiskname=$(get_ventoy_disk_name)
+if [ "$vtdiskname" = "unknown" ]; then
+    vtlog "ventoy disk not found"
+    PATH=$VTPATH_OLD
+    exit 0
+fi
+
+ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2" "noreplace"
+
+ventoy_create_dev_ventoy_part
+
+ln -s "../../ventoy1" /dev/disk/by-label/ESYSRESCUE
+
+PATH=$VTPATH_OLD
+
+set_ventoy_hook_finish

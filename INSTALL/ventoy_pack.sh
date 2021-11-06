@@ -72,6 +72,13 @@ ls -1 ./grub/ | grep -v 'grub\.cfg' | while read line; do
     cp $OPT ./grub/$line $tmpmnt/grub/
 done
 
+#tar help txt
+cd $tmpmnt/grub/
+tar czf help.tar.gz ./help/
+rm -rf ./help
+cd ../../
+
+
 cp $OPT ./ventoy   $tmpmnt/
 cp $OPT ./EFI   $tmpmnt/
 cp $OPT ./tool/ENROLL_THIS_KEY_IN_MOKMANAGER.cer $tmpmnt/
@@ -165,7 +172,14 @@ tar -czvf ventoy-${curver}-linux.tar.gz $tmpdir
 
 
 rm -f ventoy-${curver}-windows.zip
-cp $OPT Ventoy2Disk*.exe $tmpdir/
+
+cp $OPT Ventoy2Disk.exe $tmpdir/
+cp $OPT FOR_X64_ARM.txt $tmpdir/
+mkdir -p $tmpdir/altexe
+cp $OPT Ventoy2Disk_*.exe $tmpdir/altexe/
+
+
+
 cp $OPT $LANG_DIR/languages.json $tmpdir/ventoy/
 rm -rf $tmpdir/tool
 rm -f $tmpdir/*.sh
